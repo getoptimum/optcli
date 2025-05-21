@@ -26,13 +26,16 @@ var (
 	webhookURL         string
 	webhookQueueSize   int
 	webhookTimeoutSecs int
+	subThreshold       float32
 	//optional
 	subServiceURL string
 )
 
 // SubscribeRequest represents the HTTP POST payload
 type SubscribeRequest struct {
-	Topic string `json:"topic"`
+	ClientID  string  `json:"client_id"`
+	Topic     string  `json:"topic"`
+	Threshold float32 `json:"threshold,omitempty"`
 }
 
 var subscribeCmd = &cobra.Command{
@@ -52,6 +55,8 @@ var subscribeCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("error parsing token: %v", err)
 		}
+		fmt.Println("claims is", claims)
+		fmt.Println("claims is", claims.ClientID)
 		// check if the account is active
 		if !claims.IsActive {
 			return fmt.Errorf("your account is inactive, please contact support")
@@ -105,7 +110,9 @@ var subscribeCmd = &cobra.Command{
 		fmt.Println("Sending HTTP POST subscription request...")
 		httpEndpoint := fmt.Sprintf("%s/api/subscribe", srcUrl)
 		reqData := SubscribeRequest{
-			Topic: subTopic,
+			ClientID:  claims.ClientID,
+			Topic:     subTopic,
+			Threshold: subThreshold,
 		}
 		reqBytes, err := json.Marshal(reqData)
 		if err != nil {
@@ -139,7 +146,7 @@ var subscribeCmd = &cobra.Command{
 		// convert HTTP URL to WebSocket URL
 		wsURL := strings.Replace(srcUrl, "http://", "ws://", 1)
 		wsURL = strings.Replace(wsURL, "https://", "wss://", 1)
-		wsURL = fmt.Sprintf("%s/ws/api/v1/subscribe/%s", wsURL, subTopic)
+		wsURL = fmt.Sprintf("%s/api/ws?client_id=%s", wsURL, claims.ClientID)
 
 		// setup ws headers for authentication
 		header := http.Header{}
@@ -242,6 +249,7 @@ func init() {
 	subscribeCmd.Flags().StringVar(&webhookURL, "webhook", "", "URL to forward messages to")
 	subscribeCmd.Flags().IntVar(&webhookQueueSize, "webhook-queue-size", 100, "Max number of webhook messages to queue before dropping")
 	subscribeCmd.Flags().IntVar(&webhookTimeoutSecs, "webhook-timeout", 3, "Timeout in seconds for each webhook POST request")
+	subscribeCmd.Flags().Float32Var(&subThreshold, "threshold", 0.1, "Delivery threshold (0.1 to 1.0)")
 	subscribeCmd.Flags().StringVar(&subServiceURL, "service-url", "", "Override the default service URL")
 	rootCmd.AddCommand(subscribeCmd)
 }

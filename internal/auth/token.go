@@ -68,6 +68,8 @@ func (p *TokenParser) ParseToken(tokenString string) (*TokenClaims, error) {
 	}
 	if cid, ok := claims["client_id"].(string); ok {
 		tc.ClientID = cid
+	} else if sub, ok := claims["sub"].(string); ok {
+		tc.ClientID = sub // fallback if client_id missing
 	}
 	if lsa, ok := claims["limits_set_at"].(float64); ok {
 		tc.LimitsSetAt = int64(lsa)

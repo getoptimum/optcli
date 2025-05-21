@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -25,11 +24,10 @@ var (
 )
 
 // PublishPayload matches the expected JSON body on the server
-type PublishPayload struct {
-	Topic       string   `json:"topic"`
-	Protocol    []string `json:"protocol"`
-	MessageSize int64    `json:"message_size"`
-	Payload     string   `json:"payload"`
+type PublishRequest struct {
+	ClientID string `json:"client_id"`
+	Topic    string `json:"topic"`
+	Message  string `json:"message"`
 }
 
 var publishCmd = &cobra.Command{
@@ -89,11 +87,10 @@ var publishCmd = &cobra.Command{
 		}
 
 		// encode and prepare
-		reqData := PublishPayload{
-			Topic:       pubTopic,
-			Protocol:    []string{"optimump2p"},
-			MessageSize: messageSize,
-			Payload:     hex.EncodeToString(data),
+		reqData := PublishRequest{
+			ClientID: claims.ClientID,
+			Topic:    pubTopic,
+			Message:  string(data), // plain text
 		}
 		reqBytes, err := json.Marshal(reqData)
 		if err != nil {
@@ -106,7 +103,7 @@ var publishCmd = &cobra.Command{
 			baseURL = serviceURL
 		}
 
-		url := baseURL + "/api/publish?use_real=true"
+		url := baseURL + "/api/publish"
 		req, err := http.NewRequest("POST", url, strings.NewReader(string(reqBytes)))
 		if err != nil {
 			return err
